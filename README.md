@@ -24,16 +24,22 @@ cd snag
 The installer builds `~/Applications/snag.app`, signs it, writes the
 `io.github.magacek.snag` LaunchAgent and starts it.
 
-Then grant **two** permissions in System Settings → Privacy & Security, and
-restart the daemon:
+The installer opens both System Settings panes for you. Tick **snag** in
+**Accessibility** and in **Input Monitoring** — adding
+`~/Applications/snag.app` with `+` if it is not already listed.
+
+That is the whole install. There is no third command: macOS caches the
+permission answer per process, so instead of polling in place the daemon
+re-execs itself every few seconds while it waits, and a fresh process reads the
+new grant within about three seconds of you ticking the box.
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/io.github.magacek.snag
-snag status
+snag status     # both should read "granted"
 ```
 
-The restart is not optional. macOS caches the accessibility check per process,
-so a daemon that started before you granted permission never sees the grant.
+macOS will not let a program grant itself input access, so those two ticks are
+the irreducible manual step. Anything claiming a fully hands-off install on
+macOS is either mistaken or doing something you should look at closely.
 
 ### Why two permissions
 

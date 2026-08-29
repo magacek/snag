@@ -34,12 +34,21 @@ class Snag < Formula
                           events still flow, so select-to-copy keeps working
                           while the picker silently receives no keystrokes.
 
-      Grant both, then restart the daemon — macOS caches the accessibility
-      check per process:
+      Grant both, then:  brew services restart snag
+      Check what took:   snag status
 
-        brew services restart snag
+      NOTE: brew installs the bare CLI, not an .app bundle, and signs it ad-hoc.
+      Two consequences worth knowing before you choose this route:
 
-      Check what actually took:  snag status
+        * A bare Unix binary often does not appear in the Accessibility list at
+          all, so there may be no checkbox to tick. Add it with "+" and the
+          binary's path (Cmd-Shift-G to type it).
+        * Ad-hoc signing has no certificate, so TCC pins the binary hash. Every
+          upgrade looks like a brand new program and both grants are revoked.
+
+      The repo's ./install.sh avoids both: it builds a real .app bundle and
+      signs it with a stable self-signed certificate, so the grants survive
+      upgrades. Prefer it on a machine you own.
     EOS
   end
 
