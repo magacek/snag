@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; }
+    a { color: #7c85e8; } a:hover { color: #99a1f0; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 760px; height: 560px; overflow: hidden; background: #0a0a0c;">
+  <div style="position: absolute; inset: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 9px; opacity: 0.5;">
+    <div style="width: 62%; height: 8px; border-radius: 3px; background: #17171b;"></div>
+    <div style="width: 84%; height: 8px; border-radius: 3px; background: #17171b;"></div>
+    <div style="width: 41%; height: 8px; border-radius: 3px; background: #17171b;"></div>
+  </div>
+
+  <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 400px; background: rgba(17, 17, 20, 0.95); border: 0.5px solid rgba(255, 255, 255, 0.09); border-radius: 10px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.60), 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 0.5px 0 rgba(255, 255, 255, 0.06); padding: 5px; display: flex; flex-direction: column;">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 9px 8px 9px;">
+      <span style="font-size: 11px; font-weight: 510; letter-spacing: 0.01em; color: #9a9aa6;">Clipboard</span>
+      <span style="display: flex; align-items: center; gap: 3px; font-size: 10px; font-variant-numeric: tabular-nums; color: #4a4a53;">
+        <span style="display: block; height: 12px; overflow: hidden;">
+          <span style="display: block; transform: translateY({{tick}}px); transition: transform 150ms cubic-bezier(0.32, 0.72, 0, 1);">
+            <sc-for list="{{ticker}}" as="t" hint-placeholder-count="12">
+              <span style="display: block; height: 12px; line-height: 12px; text-align: right;">{{t.v}}</span>
+            </sc-for>
+          </span>
+        </span>
+        <span>/ {{count}}</span>
+      </span>
+    </div>
+
+    <!-- Viewport clips to 12 rows; the list inside translates so the selection
+         stays in view. Both the highlight and the list share one easing, so a
+         held arrow key reads as one continuous scroll. -->
+    <div style="position: relative; height: 312px; overflow: hidden;">
+      <div style="position: absolute; left: 0; right: 0; top: 0; height: 26px; border-radius: 5px; background: rgba(255,255,255,0.075); transform: translateY({{slide}}px); transition: transform 110ms cubic-bezier(0.32, 0.72, 0, 1);"></div>
+      <div style="position: relative; transform: translateY({{offset}}px); transition: transform 110ms cubic-bezier(0.32, 0.72, 0, 1);">
+        <sc-for list="{{rows}}" as="row" hint-placeholder-count="20">
+          <div onClick="{{row.pick}}" style="display: flex; align-items: center; height: 26px; padding: 0 9px; cursor: default;">
+            <span style="font-size: 12px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{row.fg}}; transition: color 110ms ease;">{{row.text}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 5px 8px 4px 8px;"></div>
+    <div style="padding: 0 9px 5px 9px; font-size: 10px; color: #4a4a53;">hold fn+⌥ · ↑↓ · release</div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"selected":{"editor":"int","default":14,"min":0,"max":19}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: null }; }
+  renderVals() {
+    const VISIBLE = 12, ROW = 26;
+    const sel = this.state.sel ?? this.props.selected ?? 14;
+    const texts = [
+      'select id, count(*) from events where created_at >= now() - interval \'7 day\'',
+      'https://github.com/magacek/snag',
+      'git rebase origin/main && git push --force-with-lease',
+      'The event tap is listen-only; it never swallows a click.',
+      'CGEvent.tapCreate(tap:place:options:eventsOfInterest:callback:userInfo:)',
+      'launchctl kickstart -k gui/501/io.github.magacek.snag',
+      'drag_threshold = 4',
+      'kIOHIDRequestTypeListenEvent',
+      'AXIsProcessTrustedWithOptions',
+      '~/.config/snag/config',
+      'Chromium and Electron expose an empty accessibility tree.',
+      '~/Library/Logs/snag.log',
+      'fd -H -t f -E node_modules -E .git',
+      'swiftc -O -o /tmp/snag Sources/*.swift',
+      'A synthetic Cmd-C copies through the app own code path.',
+      'tccutil reset Accessibility io.github.magacek.snag',
+      'NSPasteboard.general.changeCount',
+      'org.nspasteboard.ConcealedType',
+      'defaults write com.apple.screencapture show-thumbnail -bool false',
+      'codesign --force --deep --sign snag-dev snag.app'
+    ];
+    let top = 0;
+    if (sel > VISIBLE - 1) top = Math.min(sel - VISIBLE + 1, texts.length - VISIBLE);
+    return {
+      count: texts.length,
+      ticker: texts.map((_, i) => ({ v: i + 1 })),
+      tick: -sel * 12,
+      slide: (sel - top) * ROW,
+      offset: -top * ROW,
+      rows: texts.map((t, i) => ({
+        text: t,
+        fg: i === sel ? '#eeeef1' : '#8e8e99',
+        pick: () => this.setState({ sel: i })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

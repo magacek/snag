@@ -1,0 +1,5 @@
+build/
+.DS_Store
+Resources/icon.iconset/
+# ~2MB generated design export; regenerate it locally, never commit it.
+docs/design/clipboard-picker-hud.html

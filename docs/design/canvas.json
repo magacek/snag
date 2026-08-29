@@ -1,0 +1,42 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 760,
+      "h": 560,
+      "title": "HUD \u2014 12 items",
+      "is_interactive": true
+    },
+    {
+      "file": "Scroll.dc.html",
+      "x": 840,
+      "y": 0,
+      "w": 760,
+      "h": 560,
+      "title": "Scrolling \u2014 20 items, 12 visible",
+      "is_interactive": true
+    },
+    {
+      "file": "Empty.dc.html",
+      "x": 1680,
+      "y": 0,
+      "w": 760,
+      "h": 560,
+      "title": "Empty state"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "note-motion",
+      "x": 0,
+      "y": -132,
+      "w": 540,
+      "text": "Click any row to see the motion.\nThe highlight slides, the list slides under it, and the position counter rolls to the next number \u2014 all on one 110-150ms easing, so a held arrow key reads as one continuous movement rather than a series of repaints."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
