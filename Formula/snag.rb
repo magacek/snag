@@ -1,7 +1,7 @@
 # Homebrew formula for snag.
 #
 #   brew tap magacek/tap
-#   brew install --HEAD magacek/tap/snag
+#   brew install magacek/tap/snag
 #
 # Unlike a normal CLI formula this does the FULL setup in post_install: it builds
 # a real .app bundle, signs it with a stable self-signed certificate and loads the
@@ -11,6 +11,8 @@
 class Snag < Formula
   desc "X11-style select-to-copy for every macOS app, with a clipboard picker"
   homepage "https://github.com/magacek/snag"
+  url "https://github.com/magacek/snag/archive/refs/tags/v0.1.0.tar.gz"
+  sha256 "71003ca3a74766717809e058adf1ad1834779b0bcf78f1d1891f47e90007fa82"
   head "https://github.com/magacek/snag.git", branch: "main"
   license "MIT"
   depends_on :macos
