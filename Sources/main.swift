@@ -60,10 +60,21 @@ final class SelectCopy {
                 log("picker shown (\(History.shared.items.count) items)")
             } else if !want && Picker.shared.isVisible {
                 let i = Picker.shared.selected
+                let target = frontBundle
                 Picker.shared.hide()
                 if i > 0 {
                     History.shared.commit(i)
                     log("picker committed item \(i + 1)")
+                    // Only when the selection actually MOVED. Releasing without
+                    // arrowing stays a no-op, so opening the picker to look at it
+                    // can never type into whatever you had focused.
+                    if config.autoPaste && !config.denylist.contains(target) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(90)) {
+                            [weak self] in
+                            self?.postPaste()
+                            self?.log("auto-pasted into \(target)")
+                        }
+                    }
                 }
             }
 
@@ -556,6 +567,7 @@ case "--help", "-h", "help":
       ui_scale       = 1.1
       motion_ms      = 130    # picker animation; lower = snappier
       persist        = true   # keep history across restarts
+      auto_paste     = true   # release also pastes into the focused field
       send_to_app    = /Applications/Claude.app   # ⏎ sends the row here
       screenshot_dir = ~/Desktop/Screenshots
       watch_screenshots = true

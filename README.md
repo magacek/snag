@@ -187,6 +187,7 @@ restarting: `killall -HUP snag`.
 | `ui_scale` | `1.1` | picker size multiplier; clamped to 0.75–3.0 |
 | `motion_ms` | `130` | picker animation duration; clamped to 0–400, lower is snappier |
 | `persist` | `true` | keep the history across daemon restarts |
+| `auto_paste` | `true` | releasing also pastes into the focused field, when the selection moved |
 | `send_to_app` | `/Applications/Claude.app` | where ⏎ sends the selected row |
 | `demo` | `false` | keystroke overlay at the top of the main display, for demos |
 | `demo_scope` | `chords` | `chords` shows only snag's own bindings; `all` shows every keystroke |

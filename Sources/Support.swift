@@ -21,6 +21,7 @@ struct Config {
     var motionMs = 130
     var persistHistory = true
     var sendToApp = "/Applications/Claude.app"
+    var autoPaste = true
     var demo = false
     var demoScope = "chords"      // chords | all
 
@@ -68,6 +69,7 @@ struct Config {
             case "motion_ms":      c.motionMs = max(0, min(400, Int(v) ?? 130))
             case "persist":        c.persistHistory = (v == "true")
             case "send_to_app":    c.sendToApp = (v as NSString).expandingTildeInPath
+            case "auto_paste":     c.autoPaste = (v == "true")
             case "demo":           c.demo = (v == "true")
             case "demo_scope":     c.demoScope = (v == "all") ? "all" : "chords"
             case "denylist":
