@@ -21,23 +21,22 @@ class Snag < Formula
     bin.install "snag"
   end
 
-  def post_install
-    # Builds ~/Applications/snag.app, signs it with the stable identity, loads
-    # the LaunchAgent and opens both permission panes. SNAG_SKIP_SHIM stops it
-    # writing a second `snag` into ~/.local/bin that would shadow this one.
-    # Homebrew's `system` is not Kernel#system and takes no env hash — passing
-    # one makes the call fail, which post_install then swallowed as a warning.
-    ENV["SNAG_SKIP_SHIM"] = "1"
-    system libexec/"install.sh"
-  rescue StandardError => e
-    opoo "snag: setup did not complete (#{e.message}). Run this by hand:\n" \
-         "  SNAG_SKIP_SHIM=1 #{opt_libexec}/install.sh"
-  end
+  # No post_install: Homebrew's install sandbox denies writes outside the Cellar
+  # and blocks keychain access, so a formula cannot create the app bundle, the
+  # signing identity or the per-user LaunchAgent. `snag setup` does it instead.
 
   def caveats
     <<~EOS
-      snag needs TWO permissions in System Settings -> Privacy & Security.
-      Both panes were opened for you during install:
+      One more step — brew installed the CLI, not the daemon:
+
+        snag setup
+
+      That builds ~/Applications/snag.app, signs it with a stable self-signed
+      certificate, loads the LaunchAgent and opens both System Settings panes.
+      Homebrew cannot do it during install: its sandbox blocks writes to your
+      home directory and access to your keychain.
+
+      snag then needs TWO permissions in System Settings -> Privacy & Security:
 
         Accessibility     required for everything; without it nothing is copied.
         Input Monitoring  required only for the fn+option clipboard picker.
@@ -46,7 +45,7 @@ class Snag < Formula
                           while the picker silently receives no keystrokes.
 
       Tick snag in both, adding ~/Applications/snag.app with "+" if it is not
-      listed. There is no third command — the daemon re-execs itself and picks
+      listed. Nothing further to run — the daemon re-execs itself and picks
       up each grant within about three seconds.
 
       Check what took:  snag status

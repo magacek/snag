@@ -399,6 +399,40 @@ case "status":
       verbose log    : \(c.verbose ? "on (~/Library/Logs/snag.log)" : "off")
     """)
 
+case "setup":
+    // Homebrew's install sandbox denies writes outside the Cellar and blocks
+    // keychain access, so a formula cannot create the app bundle, the signing
+    // identity or the LaunchAgent. Running it as an explicit user command can.
+    let exe = URL(fileURLWithPath: Bundle.main.executablePath ?? CommandLine.arguments[0])
+        .resolvingSymlinksInPath()
+    let here = exe.deletingLastPathComponent()
+    let candidates = [
+        here.deletingLastPathComponent().appendingPathComponent("libexec/install.sh"), // brew
+        here.appendingPathComponent("install.sh"),                                     // repo
+        here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("install.sh"),         // .app
+    ]
+    guard let script = candidates.first(where: {
+        FileManager.default.isExecutableFile(atPath: $0.path)
+    }) else {
+        FileHandle.standardError.write("""
+        snag: could not find install.sh next to \(exe.path)
+
+        Clone the repo and run ./install.sh there instead:
+          git clone https://github.com/magacek/snag.git && cd snag && ./install.sh
+
+        """.data(using: .utf8)!)
+        exit(1)
+    }
+    let proc = Process()
+    proc.executableURL = script
+    var env = ProcessInfo.processInfo.environment
+    env["SNAG_SKIP_SHIM"] = "1"
+    proc.environment = env
+    try? proc.run()
+    proc.waitUntilExit()
+    exit(proc.terminationStatus)
+
 case "screenshots":
     // Point macOS's own screen capture at a folder we watch. This edits a system
     // preference, so it is an explicit command, never a side effect of install.
@@ -458,8 +492,10 @@ case "--help", "-h", "help":
     print("""
     snag — select-to-copy for every macOS app
 
-    usage: snag [run|on|off|status|screenshots|render|version|help]
+    usage: snag [run|setup|on|off|status|screenshots|render|version|help]
 
+      setup         build the app bundle, sign it, load the LaunchAgent
+                    and open both permission panes (run this after brew install)
       on / off      pause or resume select-to-copy instantly
       status        is it up, is it armed, are permissions granted
       screenshots   send macOS screenshots to a watched folder

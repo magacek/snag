@@ -21,6 +21,14 @@ cd snag
 ./install.sh
 ```
 
+Or via Homebrew — two commands, because Homebrew's install sandbox cannot write
+to your home directory or reach your keychain, and the daemon needs both:
+
+```bash
+brew install --HEAD magacek/tap/snag
+snag setup
+```
+
 The installer builds `~/Applications/snag.app`, signs it, writes the
 `io.github.magacek.snag` LaunchAgent and starts it.
 
