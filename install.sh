@@ -218,9 +218,17 @@ launchctl bootstrap "gui/$UID" "$PLIST"
 # do is not make anyone go hunting through System Settings for them.
 if [ "${NEEDS_GRANT:-0}" = "1" ] || ! "$SHIM" status 2>/dev/null | grep -q "accessibility  : granted"; then
   say "Opening both permission panes"
+  # The "+" picker always opens wherever macOS last left it and cannot be
+  # aimed from outside. So give both routes instead: reveal the bundle in
+  # Finder to drag straight into the list, and put its path on the clipboard
+  # for Cmd-Shift-G then Cmd-V.
+  printf '%s' "$APPDIR" | pbcopy 2>/dev/null || true
+  open -R "$APPDIR" 2>/dev/null || true
+  sleep 1
   open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" 2>/dev/null || true
   sleep 1
   open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent" 2>/dev/null || true
+  say "snag.app revealed in Finder — drag it onto the list, or press + then Cmd-Shift-G and paste"
 fi
 
 cat <<EOF

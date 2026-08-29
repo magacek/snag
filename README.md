@@ -32,9 +32,10 @@ snag setup
 The installer builds `~/Applications/snag.app`, signs it, writes the
 `io.github.magacek.snag` LaunchAgent and starts it.
 
-The installer opens both System Settings panes for you. Tick **snag** in
-**Accessibility** and in **Input Monitoring** — adding
-`~/Applications/snag.app` with `+` if it is not already listed.
+The installer opens both System Settings panes, reveals `snag.app` in Finder and
+puts its path on your clipboard. Tick **snag** in **Accessibility** and in
+**Input Monitoring**; if it is not listed, either drag it from the Finder window
+onto the list, or press `+` then ⌘⇧G and ⌘V.
 
 That is the whole install. There is no third command: macOS caches the
 permission answer per process, so instead of polling in place the daemon
