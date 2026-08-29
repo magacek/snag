@@ -147,12 +147,19 @@ else
   NOW_ID="adhoc"
 fi
 
+# Homebrew puts its own `snag` in the brew prefix; a shim in ~/.local/bin would
+# shadow it depending on PATH order, so skip it when brew is driving.
+if [ "${SNAG_SKIP_SHIM:-0}" = "1" ]; then
+  say "Skipping CLI shim (Homebrew provides it)"
+  SHIM="$EXEC"
+else
 say "Installing CLI shim"
 cat > "$SHIM" <<SHIMEOF
 #!/bin/sh
 exec "$EXEC" "\$@"
 SHIMEOF
 chmod +x "$SHIM"
+fi
 
 say "Writing LaunchAgent"
 mkdir -p "$(dirname "$PLIST")"

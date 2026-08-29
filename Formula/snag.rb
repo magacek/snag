@@ -1,9 +1,13 @@
-# brew tap magacek/tap && brew install --HEAD snag
+# Homebrew formula for snag.
 #
-# The formula installs the bare binary. That is enough to run snag, but the
-# repo's ./install.sh is the better path on a machine you own: it builds a real
-# .app bundle and signs it with a stable self-signed certificate, which is what
-# lets macOS keep the two privacy grants across upgrades.
+#   brew tap magacek/tap
+#   brew install --HEAD magacek/tap/snag
+#
+# Unlike a normal CLI formula this does the FULL setup in post_install: it builds
+# a real .app bundle, signs it with a stable self-signed certificate and loads the
+# LaunchAgent, then opens both System Settings panes. That is not gratuitous —
+# a bare Unix binary often never appears in the Accessibility list at all, and
+# ad-hoc signing makes TCC revoke both grants on every upgrade.
 class Snag < Formula
   desc "X11-style select-to-copy for every macOS app, with a clipboard picker"
   homepage "https://github.com/magacek/snag"
@@ -12,43 +16,37 @@ class Snag < Formula
   depends_on :macos
 
   def install
-    system "swiftc", "-O", "-o", "snag", *Dir["Sources/*.swift"]
-    system "codesign", "--force", "--sign", "-", "snag"
+    libexec.install Dir["*"]
+    system "swiftc", "-O", "-o", "snag", *Dir[libexec/"Sources/*.swift"]
     bin.install "snag"
   end
 
-  service do
-    run [opt_bin/"snag", "run"]
-    keep_alive true
-    log_path var/"log/snag.log"
-    error_log_path var/"log/snag.log"
+  def post_install
+    # Builds ~/Applications/snag.app, signs it with the stable identity, loads
+    # the LaunchAgent and opens both permission panes. SNAG_SKIP_SHIM stops it
+    # writing a second `snag` into ~/.local/bin that would shadow this one.
+    system libexec/"install.sh", { "SNAG_SKIP_SHIM" => "1" }
+  rescue
+    opoo "snag: setup did not complete — run #{libexec}/install.sh by hand"
   end
 
   def caveats
     <<~EOS
-      snag needs TWO permissions in System Settings -> Privacy & Security:
+      snag needs TWO permissions in System Settings -> Privacy & Security.
+      Both panes were opened for you during install:
 
         Accessibility     required for everything; without it nothing is copied.
         Input Monitoring  required only for the fn+option clipboard picker.
-                          Without it the event tap is still created and mouse
+                          Skip it and the event tap is still created and mouse
                           events still flow, so select-to-copy keeps working
                           while the picker silently receives no keystrokes.
 
-      Grant both, then:  brew services restart snag
-      Check what took:   snag status
+      Tick snag in both, adding ~/Applications/snag.app with "+" if it is not
+      listed. There is no third command — the daemon re-execs itself and picks
+      up each grant within about three seconds.
 
-      NOTE: brew installs the bare CLI, not an .app bundle, and signs it ad-hoc.
-      Two consequences worth knowing before you choose this route:
-
-        * A bare Unix binary often does not appear in the Accessibility list at
-          all, so there may be no checkbox to tick. Add it with "+" and the
-          binary's path (Cmd-Shift-G to type it).
-        * Ad-hoc signing has no certificate, so TCC pins the binary hash. Every
-          upgrade looks like a brand new program and both grants are revoked.
-
-      The repo's ./install.sh avoids both: it builds a real .app bundle and
-      signs it with a stable self-signed certificate, so the grants survive
-      upgrades. Prefer it on a machine you own.
+      Check what took:  snag status
+      Remove entirely:  #{opt_libexec}/uninstall.sh
     EOS
   end
 
