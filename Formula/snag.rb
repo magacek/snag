@@ -25,9 +25,13 @@ class Snag < Formula
     # Builds ~/Applications/snag.app, signs it with the stable identity, loads
     # the LaunchAgent and opens both permission panes. SNAG_SKIP_SHIM stops it
     # writing a second `snag` into ~/.local/bin that would shadow this one.
-    system libexec/"install.sh", { "SNAG_SKIP_SHIM" => "1" }
-  rescue
-    opoo "snag: setup did not complete — run #{libexec}/install.sh by hand"
+    # Homebrew's `system` is not Kernel#system and takes no env hash — passing
+    # one makes the call fail, which post_install then swallowed as a warning.
+    ENV["SNAG_SKIP_SHIM"] = "1"
+    system libexec/"install.sh"
+  rescue StandardError => e
+    opoo "snag: setup did not complete (#{e.message}). Run this by hand:\n" \
+         "  SNAG_SKIP_SHIM=1 #{opt_libexec}/install.sh"
   end
 
   def caveats
