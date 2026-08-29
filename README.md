@@ -1,4 +1,9 @@
-# snag
+<p align="center">
+  <img src="docs/icon.png" alt="snag" width="128" height="128">
+</p>
+
+<h1 align="center">snag</h1>
+
 
 snag is a small macOS daemon that puts every text selection on your clipboard
 the moment you finish making it, in every app, the way X11 has always worked. It
