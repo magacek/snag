@@ -26,6 +26,7 @@ final class SelectCopy {
     // flags even when fn is not held, so reading the fn bit off a keyDown
     // would fire the picker on any arrow press.
     private var frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
+    private var castMods: [String] = []
     private var fnDown = false
     private var optDown = false
 
@@ -45,6 +46,13 @@ final class SelectCopy {
             let f = event.flags
             fnDown = f.contains(.maskSecondaryFn)
             optDown = f.contains(.maskAlternate)
+            castMods = SelectCopy.modLabels(f)
+            if KeyCast.shared.enabled {
+                if castMods.isEmpty { KeyCast.shared.dismiss() }
+                else if config.demoScope == "all" || (fnDown && optDown) {
+                    KeyCast.shared.show(castMods)
+                }
+            }
             let want = fnDown && optDown && config.historyEnabled && config.enabled
 
             if want && !Picker.shared.isVisible {
@@ -60,6 +68,11 @@ final class SelectCopy {
             }
 
         case .keyDown:
+            if KeyCast.shared.enabled,
+               let lab = KeyCast.label(forKeyCode: event.getIntegerValueField(.keyboardEventKeycode)),
+               config.demoScope == "all" || (fnDown && optDown) {
+                KeyCast.shared.show(castMods + [lab])
+            }
             guard Picker.shared.isVisible else { return true }
             switch event.getIntegerValueField(.keyboardEventKeycode) {
             case 126, 116: Picker.shared.move(-1); return false   // Up / fn-Up = PageUp
@@ -195,6 +208,16 @@ final class SelectCopy {
         down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
     }
 
+    static func modLabels(_ f: CGEventFlags) -> [String] {
+        var out: [String] = []
+        if f.contains(.maskSecondaryFn) { out.append("fn") }
+        if f.contains(.maskControl)     { out.append("⌃") }
+        if f.contains(.maskAlternate)   { out.append("⌥") }
+        if f.contains(.maskShift)       { out.append("⇧") }
+        if f.contains(.maskCommand)     { out.append("⌘") }
+        return out
+    }
+
     private func postCopy() {
         let kVK_ANSI_C: CGKeyCode = 0x08
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: kVK_ANSI_C, keyDown: true),
@@ -306,6 +329,8 @@ final class SelectCopy {
             self.config = Config.load()
             Picker.shared.setScale(CGFloat(self.config.uiScale))
             Picker.shared.setMotion(ms: self.config.motionMs)
+            KeyCast.shared.setScale(CGFloat(self.config.uiScale))
+            KeyCast.shared.enabled = self.config.demo
             Picker.shared.sendTarget = FileManager.default.fileExists(atPath: self.config.sendToApp)
                 ? self.config.sendToApp : nil
             self.log("config reloaded")
@@ -345,6 +370,8 @@ final class SelectCopy {
         }
 
         Picker.shared.setMotion(ms: config.motionMs)
+        KeyCast.shared.setScale(CGFloat(config.uiScale))
+        KeyCast.shared.enabled = config.demo
         Picker.shared.sendTarget = FileManager.default.fileExists(atPath: config.sendToApp)
             ? config.sendToApp : nil
         History.shared.persist = config.persistHistory
@@ -372,6 +399,17 @@ let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
 case nil, "run":
     SelectCopy.shared.run()
+
+case "demo":
+    let want = args.count > 1 ? args[1] : "on"
+    guard want == "on" || want == "off" else {
+        FileHandle.standardError.write("usage: snag demo [on|off]\n".data(using: .utf8)!)
+        exit(2)
+    }
+    Config.setKey("demo", want == "on" ? "true" : "false")
+    print("snag: keystroke overlay is now \(want.uppercased())")
+    if want == "on" { print("  hold fn+option and arrow — the chord shows at the top of your main display") }
+    print("  show every keystroke instead of just snag's chords: set demo_scope = all")
 
 case "on", "off":
     Config.setEnabled(args[0] == "on")
@@ -496,6 +534,7 @@ case "--help", "-h", "help":
 
       setup         build the app bundle, sign it, load the LaunchAgent
                     and open both permission panes (run this after brew install)
+      demo on|off   keystroke overlay at the top of the main display
       on / off      pause or resume select-to-copy instantly
       status        is it up, is it armed, are permissions granted
       screenshots   send macOS screenshots to a watched folder

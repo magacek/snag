@@ -21,6 +21,8 @@ struct Config {
     var motionMs = 130
     var persistHistory = true
     var sendToApp = "/Applications/Claude.app"
+    var demo = false
+    var demoScope = "chords"      // chords | all
 
     static let path = ("~/.config/snag/config" as NSString).expandingTildeInPath
     // The daemon publishes its OWN state here. A CLI invocation cannot infer it:
@@ -66,6 +68,8 @@ struct Config {
             case "motion_ms":      c.motionMs = max(0, min(400, Int(v) ?? 130))
             case "persist":        c.persistHistory = (v == "true")
             case "send_to_app":    c.sendToApp = (v as NSString).expandingTildeInPath
+            case "demo":           c.demo = (v == "true")
+            case "demo_scope":     c.demoScope = (v == "all") ? "all" : "chords"
             case "denylist":
                 c.denylist = Set(v.split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -74,6 +78,27 @@ struct Config {
             }
         }
         return c
+    }
+
+    /// Generic single-key writer, used by the CLI toggles.
+    static func setKey(_ key: String, _ value: String) {
+        let dir = (path as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        var lines = (try? String(contentsOfFile: path, encoding: .utf8))?
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init) ?? []
+        let entry = "\(key) = \(value)"
+        if let i = lines.firstIndex(where: {
+            let t = $0.trimmingCharacters(in: .whitespaces)
+            return t.hasPrefix(key) && t.contains("=") && !t.hasPrefix("#")
+        }) { lines[i] = entry } else { lines.append(entry) }
+        if lines.last?.isEmpty == false { lines.append("") }
+        try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        // A `killall -HUP snag` also matches THIS process — the CLI binary is
+        // named snag too — so the CLI signalled itself and exited 129. Signal the
+        // daemon by the pid it publishes instead.
+        if let (_, _, pid) = readState(), pid != ProcessInfo.processInfo.processIdentifier {
+            kill(pid, SIGHUP)
+        }
     }
 
     static func setEnabled(_ on: Bool) {
@@ -91,11 +116,12 @@ struct Config {
         // is not "true", and everything silently switches off.
         if lines.last?.isEmpty == false { lines.append("") }
         try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
-        let k = Process()
-        k.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        k.arguments = ["-HUP", "snag"]
-        k.standardError = FileHandle.nullDevice
-        try? k.run(); k.waitUntilExit()
+        // A `killall -HUP snag` also matches THIS process — the CLI binary is
+        // named snag too — so the CLI signalled itself and exited 129. Signal the
+        // daemon by the pid it publishes instead.
+        if let (_, _, pid) = readState(), pid != ProcessInfo.processInfo.processIdentifier {
+            kill(pid, SIGHUP)
+        }
         print("snag: select-to-copy is now \(on ? "ON" : "OFF")")
     }
 }
@@ -896,5 +922,147 @@ final class Picker {
         hidePreview()
         panel?.orderOut(nil)
         isVisible = false
+    }
+}
+
+
+// MARK: - Keystroke overlay (demo mode)
+
+/// A strip pinned to the top of the main display showing the chord being held,
+/// so a room full of people can see the gesture. Fed from the event tap that
+/// already exists — no second app and no extra permission.
+final class KeyCast {
+    static let shared = KeyCast()
+
+    private var panel: NSPanel?
+    private let root = CALayer()
+    private var m = Metrics(1.1)
+    private var fade: Timer?
+    var enabled = false
+
+    func setScale(_ scale: CGFloat) { m = Metrics(max(0.75, min(3.0, scale))) }
+
+    private func makePanel() -> NSPanel {
+        if let p = panel { return p }
+        let p = NSPanel(contentRect: .zero,
+                        styleMask: [.borderless, .nonactivatingPanel],
+                        backing: .buffered, defer: false)
+        p.isFloatingPanel = true
+        p.level = .statusBar
+        p.hidesOnDeactivate = false
+        p.isOpaque = false
+        p.backgroundColor = .clear
+        p.hasShadow = false
+        p.ignoresMouseEvents = true
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        let host = NSView(frame: .zero)
+        host.wantsLayer = true
+        host.layer = CALayer()
+        host.layer?.addSublayer(root)
+        p.contentView = host
+        panel = p
+        return p
+    }
+
+    /// `caps` are already-formatted labels: ["fn", "⌥", "↓"]
+    func show(_ caps: [String]) {
+        guard enabled, !caps.isEmpty else { return }
+        let capH = 26 * m.s, gap = 6 * m.s, plusW = 11 * m.s
+        let font = NSFont.systemFont(ofSize: 13 * m.s, weight: .medium)
+        let plusFont = NSFont.systemFont(ofSize: 11 * m.s, weight: .regular)
+
+        var widths: [CGFloat] = []
+        for c in caps { widths.append(max(30 * m.s, measure(c, font) + 18 * m.s)) }
+        let inner = widths.reduce(0, +) + CGFloat(max(caps.count - 1, 0)) * (gap * 2 + plusW)
+        let cardW = inner + m.pad * 2 + 8 * m.s
+        let cardH = capH + m.pad * 2 + 6 * m.s
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        root.sublayers?.forEach { $0.removeFromSuperlayer() }
+        root.frame = CGRect(x: m.shadowMargin, y: m.shadowMargin, width: cardW, height: cardH)
+        root.backgroundColor = C.panelBG
+        root.cornerRadius = m.radius
+        root.borderWidth = m.border
+        root.borderColor = C.border
+        root.shadowColor = NSColor.black.cgColor
+        root.shadowOpacity = 0.55
+        root.shadowRadius = 20 * m.s
+        root.shadowOffset = CGSize(width: 0, height: -12 * m.s)
+        root.opacity = 1
+
+        var x = m.pad + 4 * m.s
+        let capY = (cardH - capH) / 2
+        for (i, c) in caps.enumerated() {
+            let w = widths[i]
+            let cap = CALayer()
+            cap.frame = CGRect(x: x, y: capY, width: w, height: capH)
+            cap.cornerRadius = m.rowRadius
+            cap.backgroundColor = C.highlight
+            cap.borderWidth = m.border
+            cap.borderColor = C.hairline
+            root.addSublayer(cap)
+
+            let t = textLayer(c, font, C.rowOn, align: .center)
+            t.frame = CGRect(x: x, y: capY + (capH - 17 * m.s) / 2, width: w, height: 17 * m.s)
+            root.addSublayer(t)
+            x += w
+
+            if i < caps.count - 1 {
+                let p = textLayer("+", plusFont, C.dimFG, align: .center)
+                p.frame = CGRect(x: x + gap, y: capY + (capH - 15 * m.s) / 2, width: plusW, height: 15 * m.s)
+                root.addSublayer(p)
+                x += gap * 2 + plusW
+            }
+        }
+        CATransaction.commit()
+
+        let p = makePanel()
+        let outer = NSSize(width: cardW + m.shadowMargin * 2, height: cardH + m.shadowMargin * 2)
+        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let cardX = screen.midX - cardW / 2
+        let cardY = screen.maxY - cardH - 24 * m.s          // near the top
+        p.setFrame(NSRect(x: (cardX - m.shadowMargin).rounded(),
+                          y: (cardY - m.shadowMargin).rounded(),
+                          width: outer.width, height: outer.height), display: false)
+        p.contentView?.frame = NSRect(origin: .zero, size: outer)
+        p.orderFrontRegardless()
+
+        fade?.invalidate()
+        let t = Timer(timeInterval: 0.8, repeats: false) { [weak self] _ in self?.dismiss() }
+        RunLoop.main.add(t, forMode: .common)
+        fade = t
+    }
+
+    func dismiss() {
+        fade?.invalidate(); fade = nil
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.18)
+        CATransaction.setCompletionBlock { [weak self] in self?.panel?.orderOut(nil) }
+        root.opacity = 0
+        CATransaction.commit()
+    }
+
+    /// Human labels for the keys snag actually uses, plus the common rest.
+    static func label(forKeyCode code: Int64) -> String? {
+        switch code {
+        case 126, 116: return "↑"
+        case 125, 121: return "↓"
+        case 123, 115: return "←"
+        case 124, 119: return "→"
+        case 36, 76:   return "⏎"
+        case 51, 117:  return "⌫"
+        case 53:       return "esc"
+        case 48:       return "⇥"
+        case 49:       return "space"
+        default: break
+        }
+        let map: [Int64: String] = [
+            0:"A",1:"S",2:"D",3:"F",4:"H",5:"G",6:"Z",7:"X",8:"C",9:"V",11:"B",12:"Q",13:"W",
+            14:"E",15:"R",16:"Y",17:"T",18:"1",19:"2",20:"3",21:"4",22:"6",23:"5",24:"=",25:"9",
+            26:"7",27:"-",28:"8",29:"0",30:"]",31:"O",32:"U",33:"[",34:"I",35:"P",37:"L",38:"J",
+            39:"'",40:"K",41:";",42:"\\",43:",",44:"/",45:"N",46:"M",47:".",50:"`",
+        ]
+        return map[code]
     }
 }

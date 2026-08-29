@@ -188,6 +188,8 @@ restarting: `killall -HUP snag`.
 | `motion_ms` | `130` | picker animation duration; clamped to 0–400, lower is snappier |
 | `persist` | `true` | keep the history across daemon restarts |
 | `send_to_app` | `/Applications/Claude.app` | where ⏎ sends the selected row |
+| `demo` | `false` | keystroke overlay at the top of the main display, for demos |
+| `demo_scope` | `chords` | `chords` shows only snag's own bindings; `all` shows every keystroke |
 | `screenshot_dir` | `~/Desktop/Screenshots` | folder the daemon watches |
 | `watch_screenshots` | `true` | put new files in that folder on the clipboard |
 | `denylist` | `com.apple.finder` | bundle IDs that never receive a synthetic ⌘C |
