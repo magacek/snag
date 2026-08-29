@@ -117,7 +117,7 @@ Hold **fn+option**. The picker appears in the middle of the screen with the last
 | ⏎ | commit the row, bring `send_to_app` forward and paste into it — the Claude desktop app by default. Does nothing at all if that app is not installed. |
 | ⌫ | clear the entire history, on disk as well |
 | esc | dismiss without changing the clipboard |
-| release fn+option | put the highlighted row back on the clipboard |
+| release fn+option | put the highlighted row on the clipboard, and paste it into whatever text field you were in |
 
 Releasing on row 1 does nothing, because row 1 is already what is on the
 clipboard. Releasing on any other row makes it the clipboard contents, so your
